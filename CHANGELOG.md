@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-07-06
+
+### Changed
+
+- Relaxed the Elixir requirement from `~> 1.20` to `~> 1.18` (the floor is
+  the built-in `JSON` module, introduced in 1.18); CI now tests
+  Elixir 1.18/OTP 26 through 1.20/OTP 29
+
+### Added
+
+- Testing guide: stubbing ExNtfy's HTTP layer with `Req.Test` plugs,
+  simulating errors, and how to approach subscription testing
+- Subscriptions guide: pool-sizing guidance for many concurrent
+  subscriptions (dedicated Finch pool via `req_options: [finch: ...]`)
+- README: scope and versioning statement; `SECURITY.md` with a private
+  reporting channel; Dependabot for Mix and GitHub Actions dependencies
+
 ## [0.1.0] — 2026-07-05
 
 ### Added

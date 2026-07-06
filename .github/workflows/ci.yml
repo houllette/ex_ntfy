@@ -16,10 +16,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: "1.20"
-            otp: "29"
+          - elixir: "1.18"
+            otp: "26"
+          - elixir: "1.19"
+            otp: "27"
           - elixir: "1.20"
             otp: "28"
+          - elixir: "1.20"
+            otp: "29"
+            # formatter/credo/coverage run once, on the newest combo —
+            # formatter output can differ across Elixir versions
+            lint: true
     steps:
       - uses: actions/checkout@v4
 
@@ -42,15 +49,18 @@ jobs:
         run: mix deps.get
 
       - name: Check formatting
+        if: matrix.lint
         run: mix format --check-formatted
 
       - name: Run Credo
+        if: matrix.lint
         run: mix credo --strict
 
       - name: Run tests
         run: mix test --warnings-as-errors
 
       - name: Run coverage
+        if: matrix.lint
         run: mix coveralls
 
   dialyzer:
