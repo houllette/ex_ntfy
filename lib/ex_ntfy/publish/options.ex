@@ -290,8 +290,11 @@ defmodule ExNtfy.Publish.Options do
   defp json_value(key, true) when key in [:email, :call], do: "yes"
   defp json_value(_key, value), do: value
 
-  defp priority_int(int) when is_integer(int), do: int
-  defp priority_int(atom), do: Map.fetch!(@priority_atoms, atom)
+  # Shared with ExNtfy.Subscribe.Options — same atom names on both sides.
+  @doc false
+  @spec priority_int(1..5 | atom()) :: 1..5
+  def priority_int(int) when is_integer(int), do: int
+  def priority_int(atom), do: Map.fetch!(@priority_atoms, atom)
 
   defp delay_string(%DateTime{} = dt), do: dt |> DateTime.to_unix() |> Integer.to_string()
   defp delay_string(int) when is_integer(int), do: Integer.to_string(int)

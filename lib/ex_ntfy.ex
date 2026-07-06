@@ -68,6 +68,21 @@ defmodule ExNtfy do
   (`ExNtfy.publish("deploys", "…", sequence_id: "deploy-42")`) and use it for
   every follow-up.
 
+  ## Polling
+
+  Fetch cached messages without holding a connection open (see
+  `ExNtfy.Subscribe.Options` for the full `since`/filter surface):
+
+      # Everything cached for one or more topics
+      {:ok, messages} = ExNtfy.poll("mytopic")
+      {:ok, messages} = ExNtfy.poll(["alerts", "backups"], since: "10m")
+
+      # Resume after the last message you processed
+      ExNtfy.poll("mytopic", since: last_message.id)
+
+      # Filters: priority is any-match, tags must all match
+      ExNtfy.poll("mytopic", priority: [:high, :urgent], tags: [:warning], scheduled: true)
+
   Client options mix into the same keyword list — for a self-hosted server
   with authentication:
 
@@ -81,7 +96,7 @@ defmodule ExNtfy do
   message or raises.
   """
 
-  alias ExNtfy.Publisher
+  alias ExNtfy.{Poller, Publisher}
 
   @doc "Publishes a message as JSON. See `ExNtfy.Publisher.publish/3`."
   defdelegate publish(topic, message, opts \\ []), to: Publisher
@@ -109,4 +124,10 @@ defmodule ExNtfy do
 
   @doc "Deletes a notification from clients. See `ExNtfy.Publisher.delete/3`."
   defdelegate delete(topic, sequence_id, opts \\ []), to: Publisher
+
+  @doc "Fetches cached messages one-shot. See `ExNtfy.Poller.poll/2`."
+  defdelegate poll(topics, opts \\ []), to: Poller
+
+  @doc "Like `poll/2`, but raises on failure. See `ExNtfy.Poller.poll!/2`."
+  defdelegate poll!(topics, opts \\ []), to: Poller
 end
