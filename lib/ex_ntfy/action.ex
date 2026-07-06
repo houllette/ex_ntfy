@@ -76,7 +76,92 @@ defmodule ExNtfy.Action do
     }
   end
 
+  @doc """
+  Encodes an action to the ntfy JSON object shape (the outgoing counterpart of
+  `from_map/1` — fixture maps round-trip exactly).
+
+  `nil` fields and a `false` `clear` are omitted; plain ntfy-shaped maps pass
+  through untouched.
+
+  ## Examples
+
+      iex> ExNtfy.Action.to_json_map(%ExNtfy.Action{type: :copy, label: "Copy", value: "abc"})
+      %{"action" => "copy", "label" => "Copy", "value" => "abc"}
+
+  """
+  @spec to_json_map(t() | map()) :: map()
+  def to_json_map(%__MODULE__{} = action) do
+    %{
+      "action" => type_string(action.type),
+      "id" => action.id,
+      "label" => action.label,
+      "url" => action.url,
+      "method" => action.method,
+      "headers" => action.headers,
+      "body" => action.body,
+      "intent" => action.intent,
+      "extras" => action.extras,
+      "value" => action.value,
+      "clear" => action.clear || nil
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  def to_json_map(map) when is_map(map), do: map
+
+  @doc """
+  Encodes an action in ntfy's short header format (§1.5): `key=value` pairs
+  joined by `, `, with `headers` and `extras` maps flattened to
+  `headers.<name>=` / `extras.<key>=` (keys sorted for determinism).
+
+  Values containing `,`, `;`, or quotes are quoted — double quotes by default,
+  single quotes when the value itself contains a double quote. `clear` appears
+  only when `true`; `id` is server-assigned and never emitted.
+
+  ## Examples
+
+      iex> ExNtfy.Action.to_short(%ExNtfy.Action{type: :view, label: "Open", url: "https://x.io"})
+      "action=view, label=Open, url=https://x.io"
+
+  """
+  @spec to_short(t() | map()) :: String.t()
+  def to_short(%__MODULE__{} = action) do
+    fields =
+      [{"action", type_string(action.type)}, {"label", action.label}] ++
+        [{"url", action.url}, {"method", action.method}] ++
+        flatten("headers", action.headers) ++
+        [{"body", action.body}, {"intent", action.intent}] ++
+        flatten("extras", action.extras) ++
+        [{"value", action.value}] ++
+        if action.clear, do: [{"clear", "true"}], else: []
+
+    fields
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Enum.map_join(", ", fn {key, value} -> key <> "=" <> quote_short(value) end)
+  end
+
+  def to_short(map) when is_map(map), do: map |> from_map() |> to_short()
+
   defp parse_type(nil), do: nil
   defp parse_type(name) when is_map_key(@known_types, name), do: @known_types[name]
   defp parse_type(name) when is_binary(name), do: {:unknown, name}
+
+  defp type_string(nil), do: nil
+  defp type_string({:unknown, name}), do: name
+  defp type_string(atom), do: Atom.to_string(atom)
+
+  defp flatten(_prefix, nil), do: []
+
+  defp flatten(prefix, map) do
+    map |> Enum.sort() |> Enum.map(fn {key, value} -> {prefix <> "." <> key, value} end)
+  end
+
+  defp quote_short(value) do
+    cond do
+      not String.contains?(value, [",", ";", "\"", "'"]) -> value
+      String.contains?(value, "\"") -> "'" <> value <> "'"
+      true -> "\"" <> value <> "\""
+    end
+  end
 end

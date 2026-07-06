@@ -101,6 +101,18 @@ defmodule ExNtfy.Fixtures do
     }
   end
 
+  @doc "JSON body returned by a successful publish (§1.1)."
+  def publish_response_map do
+    %{
+      "id" => "xE73Iyuabi",
+      "time" => 1_673_542_291,
+      "expires" => 1_673_585_491,
+      "event" => "message",
+      "topic" => "mytopic",
+      "message" => "triggered"
+    }
+  end
+
   @doc "ntfy JSON error body for HTTP 429 (§1.8)."
   def error_429_map do
     %{

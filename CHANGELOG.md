@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ExNtfy.publish/3`, `publish!/3`, `publish_raw/3`, and `trigger/2` —
+  publishing with full option coverage (title, priority, tags, markdown,
+  delay, click, icon, attach, filename, actions, email, call, sequence_id,
+  cache, firebase, unified_push, template, poll_id), delegating to
+  `ExNtfy.Publisher`
+- `ExNtfy.Publish.Options` — one NimbleOptions schema validating publish
+  options and encoding them as JSON body fields, canonical `X-` headers
+  (RFC 2047 for non-ASCII values), or query parameters
+- `ExNtfy.Action.to_json_map/1` and `to_short/1` — outgoing action-button
+  encoding (JSON and ntfy short format), round-tripping with `from_map/1`
+- Telemetry: `[:ex_ntfy, :publish, :start | :stop | :exception]` span events
+  with `%{topic, base_url}` metadata
 - `ExNtfy.Client` — Req-based HTTP client with `new/1` and `request/2`,
   Basic/Bearer authentication via header or `?auth=` query parameter, and a
   `req_options` escape hatch

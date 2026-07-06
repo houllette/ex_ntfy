@@ -75,5 +75,13 @@ defmodule ExNtfy.ErrorTest do
       rendered = Error.from_response(500, "") |> Exception.message()
       assert rendered =~ "500"
     end
+
+    test "renders a non-exception reason by inspecting it" do
+      rendered =
+        Exception.message(%Error{reason: {:invalid_response, {:missing_fields, ["id"]}}})
+
+      assert rendered =~ "invalid_response"
+      assert rendered =~ "missing_fields"
+    end
   end
 end

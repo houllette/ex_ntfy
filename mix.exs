@@ -47,6 +47,7 @@ defmodule ExNtfy.MixProject do
     [
       {:req, "~> 0.6"},
       {:nimble_options, "~> 1.1"},
+      {:telemetry, "~> 1.4"},
       # dev/test
       {:bypass, "~> 2.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
