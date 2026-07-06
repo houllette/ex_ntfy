@@ -45,6 +45,15 @@ reconnect flow. The WS non-101 upgrade path parses the rejection body JSON, so
 
 ## Surprises / things later phases should know
 
+- **CI caught a real race the local suite missed**: WebSocket wire data can
+  ride the same TCP segment as the 101 handshake (a server pushing
+  immediately on connect). The upgrade await was stashing that data as if it
+  were an error body — silently swallowing the first frame. Fix: leftover
+  wire bytes are kept as `pending` and the transport `send`s itself a
+  synthetic `{Stream.WS, :pending, ref}` message right after connect (the
+  connect runs in the subscription process, so it arrives via `handle_info`
+  without changing the Transport contract). Deterministic regression test:
+  the test server pushes from its WebSock `init` (`/push-on-init*` topics).
 - **Dialyzer false positive on `Mint.WebSocket.new/5`**: it can't track Mint's
   private conn state through the `Mint.WebSocket.stream/2` await loop and
   concludes the `{:ok, conn, websocket}` success can never match. Scoped

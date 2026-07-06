@@ -19,7 +19,13 @@ defmodule ExNtfy.WSTestServer do
     @impl WebSock
     def init(state) do
       send(state.test_pid, {:ws_connected, self(), state.conn_info})
-      {:ok, state}
+
+      case state do
+        # Push immediately so the frame rides right behind the 101 handshake —
+        # exercises the client's pending-data path for same-segment arrivals.
+        %{push_on_init: payload} -> {:push, {:text, payload}, state}
+        _no_push -> {:ok, state}
+      end
     end
 
     @impl WebSock
@@ -62,12 +68,16 @@ defmodule ExNtfy.WSTestServer do
         headers: Map.new(conn.req_headers)
       }
 
-      WebSockAdapter.upgrade(
-        conn,
-        Sock,
-        %{test_pid: test_pid, conn_info: conn_info},
-        []
-      )
+      sock_state = %{test_pid: test_pid, conn_info: conn_info}
+
+      sock_state =
+        if String.starts_with?(conn.request_path, "/push-on-init") do
+          Map.put(sock_state, :push_on_init, JSON.encode!(ExNtfy.Fixtures.full_message_map()))
+        else
+          sock_state
+        end
+
+      WebSockAdapter.upgrade(conn, Sock, sock_state, [])
     end
   end
 

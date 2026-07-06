@@ -84,6 +84,11 @@ defmodule ExNtfy.Stream.WS do
   end
 
   @impl ExNtfy.Subscription.Transport
+  def handle_message({__MODULE__, :pending, ref}, %{ref: ref, pending: pending} = state) do
+    entries = Enum.map(pending, &{:data, ref, &1})
+    handle_entries(entries, %{state | pending: []})
+  end
+
   def handle_message(message, %{conn: conn} = state) do
     case Mint.WebSocket.stream(conn, message) do
       {:ok, conn, entries} -> handle_entries(entries, %{state | conn: conn})
@@ -144,8 +149,17 @@ defmodule ExNtfy.Stream.WS do
 
   defp finish_upgrade(conn, ref, %{status: 101} = acc) do
     case Mint.WebSocket.new(conn, ref, acc.status, acc.headers) do
-      {:ok, conn, websocket} -> {:ok, %{conn: conn, ref: ref, websocket: websocket}}
-      {:error, conn, reason} -> close_quietly(conn, Error.from_exception(reason))
+      {:ok, conn, websocket} ->
+        # WebSocket wire data can ride the same TCP segment as the 101 (a
+        # server pushing immediately on connect). Stash it and poke ourselves
+        # — connect/3 runs in the subscription process, so the synthetic
+        # message lands in its handle_info and reaches handle_message/2.
+        pending = Enum.reverse(acc.body)
+        if pending != [], do: send(self(), {__MODULE__, :pending, ref})
+        {:ok, %{conn: conn, ref: ref, websocket: websocket, pending: pending}}
+
+      {:error, conn, reason} ->
+        close_quietly(conn, Error.from_exception(reason))
     end
   end
 

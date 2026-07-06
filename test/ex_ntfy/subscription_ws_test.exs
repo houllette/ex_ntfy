@@ -84,6 +84,18 @@ defmodule ExNtfy.SubscriptionWSTest do
       assert :ok = ExNtfy.unsubscribe(pid)
     end
 
+    test "a frame riding the same segment as the 101 handshake is not lost", %{
+      base_url: base_url
+    } do
+      # The server pushes from its init callback, so the first frame lands
+      # right behind the upgrade response bytes.
+      {:ok, pid} =
+        ExNtfy.subscribe("push-on-init-topic", [base_url: base_url, format: :ws] ++ @fast)
+
+      assert_receive {:ntfy, ^pid, %Message{id: "sPs71M8A2T", event: :message}}, 1_000
+      assert :ok = ExNtfy.unsubscribe(pid)
+    end
+
     test "handler mode works over ws", %{base_url: base_url} do
       defmodule WSHandler do
         @behaviour ExNtfy.Handler
