@@ -1,0 +1,16 @@
+# Build artifacts
+/_build/
+/deps/
+/cover/
+/doc/
+erl_crash.dump
+*.ez
+
+# Hex package tarballs
+ex_ntfy-*.tar
+
+# Language server / tooling
+.elixir_ls/
+
+# Dialyzer PLTs
+/priv/plts/

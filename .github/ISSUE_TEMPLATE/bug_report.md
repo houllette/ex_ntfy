@@ -37,16 +37,8 @@ Paste error messages here
 - **Elixir version**: <!-- e.g., 1.15.7 -->
 - **Erlang/OTP version**: <!-- e.g., 26.2.1 -->
 - **Operating System**: <!-- e.g., macOS 14.0, Ubuntu 22.04 -->
-- **OpenAPI Generator version**: <!-- e.g., 7.0.0 -->
-- **SDK version**: <!-- e.g., 1.0.0 -->
-
-## OpenAPI Specification
-
-<!-- If the bug is related to spec generation, provide relevant parts of your OpenAPI spec -->
-
-```yaml
-# Paste relevant parts of your OpenAPI spec here
-```
+- **ExNtfy version**: <!-- e.g., 0.1.0 -->
+- **ntfy server**: <!-- e.g., ntfy.sh or self-hosted (version) -->
 
 ## Code Sample
 
