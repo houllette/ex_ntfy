@@ -1,163 +1,80 @@
 # Contributing to ExNtfy
 
-Thank you for considering contributing to this project! This document provides guidelines for contributing.
+Thanks for helping out! This project is small and disciplined — the rules
+below keep it that way.
 
-## Code of Conduct
+## Development setup
+
+```sh
+mix deps.get
+mix test
+```
+
+Elixir ~> 1.20 with the built-in `JSON` module is required (CI runs OTP 28
+and 29). No external services are needed for the default suite.
+
+## The workflow: tests first
+
+This library was built test-first, phase by phase (the `plan/` folder holds
+the phase specs and per-phase `NOTES.md` decision records — read them for
+history and rationale). Contributions should follow the same shape:
+
+1. **Write the failing test first.** HTTP request/response behavior is tested
+   with `Req.Test` stubs (see `ExNtfy.TestHelpers.req_stub/1`); streaming
+   behavior against real servers in-test — Bypass for chunked HTTP,
+   Bandit + WebSock for WebSocket (`test/support/ws_test_server.ex`).
+2. Implement until green.
+3. If you discovered a bug, the regression test lands in the same commit as
+   the fix.
+
+Encoding behavior is asserted exactly (headers, query strings, JSON bodies) —
+`plan/ntfy-api-reference.md` is the source of truth for the wire format.
+
+## Quality gates
+
+All of these must pass — CI enforces them:
+
+```sh
+mix format --check-formatted
+mix credo --strict
+mix test --warnings-as-errors
+mix coveralls          # minimum 90% coverage
+mix dialyzer
+mix docs               # must be warning-free
+```
+
+## Live integration tests
+
+`test/live/` runs against the real ntfy.sh and is excluded by default:
+
+```sh
+mix test --only live
+```
+
+Keep live tests few and gentle (random per-test topics, spaced requests) —
+ntfy.sh has rate limits and we are guests. Live tests *detect* bugs; the
+regression test that pins the fix must be a stub/Bypass test.
+
+## Conventions worth knowing
+
+- Options are validated with NimbleOptions schemas; unknown options must
+  raise, never be silently dropped. Schemas self-document via
+  `NimbleOptions.docs/1` interpolated into moduledocs.
+- Parsing is lenient (unknown fields/events are preserved or tagged, never
+  crashes); encoding is strict.
+- Feature modules build request options and go through `ExNtfy.Client`;
+  responses parse through `ExNtfy.Message.from_map/1`.
+- Public functions carry `@spec` and `@doc`; true internals are
+  `@moduledoc false`.
+- Telemetry metadata never includes credentials or message contents.
+
+## Reporting bugs
+
+Include your Elixir/OTP versions, the ntfy server (ntfy.sh or self-hosted +
+version), a minimal snippet, and expected vs. actual behavior. For wire-format
+mismatches, the raw HTTP exchange (e.g. via `req_options: [plug: ...]` or a
+proxy) is gold.
+
+## Code of conduct
 
 Be respectful and constructive in all interactions.
-
-## How to Contribute
-
-### Reporting Bugs
-
-When reporting bugs, please include:
-
-1. **Description**: Clear description of the issue
-2. **Steps to Reproduce**: Detailed steps to reproduce the behavior
-3. **Expected Behavior**: What you expected to happen
-4. **Actual Behavior**: What actually happened
-5. **Environment**:
-   - Elixir version (`elixir --version`)
-   - Erlang/OTP version
-   - Operating system
-
-### Suggesting Features
-
-Feature suggestions are welcome! Please:
-
-1. Check if the feature already exists or is planned
-2. Clearly describe the feature and its use case
-3. Explain why it would be useful
-4. Consider providing implementation ideas
-
-### Pull Requests
-
-#### Before Submitting
-
-1. **Check existing PRs**: Make sure a similar PR doesn't already exist
-2. **Open an issue**: For significant changes, open an issue first to discuss
-3. **Follow conventions**: Match the existing code style and patterns
-
-#### PR Process
-
-1. **Fork the repository** and create your branch from `main`
-2. **Make your changes** with clear, atomic commits
-3. **Add tests** for any new functionality
-4. **Update documentation** including README, CHANGELOG, and code comments
-5. **Run the test suite** and ensure all tests pass
-6. **Format your code** with `mix format`
-7. **Run the linter** with `mix credo --strict`
-8. **Submit the PR** with a clear description
-
-#### PR Requirements
-
-- [ ] Tests pass (`mix test`)
-- [ ] Code is formatted (`mix format --check-formatted`)
-- [ ] Linter passes (`mix credo --strict`)
-- [ ] Dialyzer passes (`mix dialyzer`)
-- [ ] Documentation is updated
-- [ ] CHANGELOG.md is updated (if applicable)
-- [ ] Commit messages are clear and descriptive
-
-## Development Setup
-
-### Prerequisites
-
-- Elixir 1.15 or later
-- Erlang/OTP 26 or later
-- Git
-
-### Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/houllette/ex_ntfy.git
-cd ex_ntfy
-
-# Install dependencies
-mix deps.get
-
-# Run tests
-mix test
-
-# Format code
-mix format
-
-# Run linter
-mix credo --strict
-```
-
-### Testing
-
-```bash
-# Run all tests
-mix test
-
-# Run with coverage
-mix coveralls
-
-# Run specific test file
-mix test test/ex_ntfy_test.exs
-```
-
-### Code Style
-
-- Follow the [Elixir Style Guide](https://github.com/christopheradams/elixir_style_guide)
-- Use `mix format` before committing
-- Write descriptive function names and module documentation
-- Add typespecs for public functions
-
-### Commit Messages
-
-Write clear, concise commit messages:
-
-```
-Short summary (50 chars or less)
-
-More detailed explanation if needed. Wrap at 72 characters.
-Explain the problem this commit solves and why you chose
-this solution.
-
-Resolves: #123
-See also: #456, #789
-```
-
-**Commit Message Format:**
-
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation changes
-- `style:` - Code style changes (formatting, etc.)
-- `refactor:` - Code refactoring
-- `test:` - Adding or updating tests
-- `chore:` - Maintenance tasks
-
-### Branch Naming
-
-Use descriptive branch names:
-
-- `feat/add-retry-logic`
-- `fix/connection-timeout`
-- `docs/update-readme`
-- `refactor/simplify-config`
-
-## Documentation
-
-- Use `@moduledoc` for module documentation
-- Use `@doc` for function documentation
-- Include examples in documentation
-- Add typespecs for public functions
-
-## Questions?
-
-- Open an issue for questions
-- Check existing issues and discussions
-- Review the documentation
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
----
-
-Thank you for contributing! 🎉

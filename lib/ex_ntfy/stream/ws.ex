@@ -6,13 +6,11 @@ defmodule ExNtfy.Stream.WS do
 
       {:mint_web_socket, "~> 1.0"}
 
-  Implements the `ExNtfy.Subscription.Transport` connection callbacks (Mint
-  connect → WebSocket upgrade; each text frame is one payload unit) and the
-  stream-parser contract (`new/0`/`feed/2` — a frame is a complete JSON
-  message object, so there is no line reassembly). Server pings are answered
-  with pongs internally; close frames and transport errors go through the
-  subscription's normal reconnect flow. Binary frames are ignored (ntfy sends
-  text).
+  Implements the subscription's internal transport contract (Mint connect →
+  WebSocket upgrade; each text frame is one complete JSON message object, so
+  there is no line reassembly). Server pings are answered with pongs
+  internally; close frames and transport errors go through the subscription's
+  normal reconnect flow. Binary frames are ignored (ntfy sends text).
 
   Auth works both ways on the upgrade request: the `Authorization` header, or
   `auth_via: :query` for the `?auth=` parameter — the canonical use case for

@@ -1,13 +1,10 @@
 defmodule ExNtfy.Stream.Raw do
-  @moduledoc """
-  Incremental parser for ntfy's `/raw` stream: each line is a message *body*
-  only, an empty line is a keepalive.
-
-  Messages are synthesized with `event: :message` and the line as `message` —
-  there is no metadata on this stream, so `id`/`time`/`topic` are `nil` and
-  reconnects cannot resume with `since=<id>`. Prefer `/json` unless you truly
-  only need bodies. Pure and stateful: `new/0` then `feed/2`.
-  """
+  # Incremental parser for ntfy's /raw stream: each line is a message BODY
+  # only, an empty line is a keepalive. Messages are synthesized with
+  # event: :message and the line as message — there is no metadata on this
+  # stream, so id/time/topic are nil and reconnects cannot resume with
+  # since=<id>. Pure and stateful: new/0 then feed/2.
+  @moduledoc false
 
   alias ExNtfy.Message
 

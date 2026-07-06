@@ -1,13 +1,11 @@
 defmodule ExNtfy.Stream.SSE do
-  @moduledoc """
-  Incremental parser for ntfy's `/sse` stream (EventSource format).
-
-  Only `data:` fields carry the message JSON (the JSON's own `event` field
-  governs — the SSE `event:` field is redundant and ignored, as are comments
-  and other fields). Multi-line `data:` fields join with `\\n` per the SSE
-  spec; a blank line dispatches the accumulated event. Pure and stateful:
-  `new/0` then `feed/2`.
-  """
+  # Incremental parser for ntfy's /sse stream (EventSource format). Only
+  # data: fields carry the message JSON (the JSON's own event field governs —
+  # the SSE event: field is redundant and ignored, as are comments and other
+  # fields). Multi-line data: fields join with \n per the SSE spec; a blank
+  # line dispatches the accumulated event. Pure and stateful: new/0 then
+  # feed/2.
+  @moduledoc false
 
   alias ExNtfy.Message
 

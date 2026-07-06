@@ -1,12 +1,10 @@
 defmodule ExNtfy.Subscription.HTTPTransport do
-  @moduledoc """
-  The default `ExNtfy.Subscription.Transport`: a streaming HTTP request via
-  Req's `into: :self` — chunks arrive as messages parsed with
-  `Req.parse_message/2`. Used by the `:json`, `:sse`, and `:raw` formats.
-
-  Req's own retry is disabled on the request; the subscription's reconnect
-  loop is in charge.
-  """
+  # The default ExNtfy.Subscription.Transport: a streaming HTTP request via
+  # Req's into: :self — chunks arrive as messages parsed with
+  # Req.parse_message/2. Used by the :json, :sse, and :raw formats. Req's own
+  # retry is disabled on the request; the subscription's reconnect loop is in
+  # charge.
+  @moduledoc false
 
   @behaviour ExNtfy.Subscription.Transport
 

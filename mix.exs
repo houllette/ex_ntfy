@@ -66,10 +66,13 @@ defmodule ExNtfy.MixProject do
 
   defp package do
     [
+      # Keep the tarball lean: no plan/, test/, guides/, or CI files.
+      files: ~w(lib mix.exs README.md CHANGELOG.md LICENSE .formatter.exs),
       licenses: ["MIT"],
       links: %{
         "GitHub" => @source_url,
-        "ntfy" => "https://ntfy.sh"
+        "ntfy" => "https://ntfy.sh",
+        "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
       }
     ]
   end
@@ -79,7 +82,27 @@ defmodule ExNtfy.MixProject do
       main: "ExNtfy",
       source_url: @source_url,
       source_ref: "v#{@version}",
-      extras: ["README.md", "CHANGELOG.md"]
+      extras: [
+        "README.md",
+        "guides/publishing.md",
+        "guides/subscriptions.md",
+        "CHANGELOG.md"
+      ],
+      groups_for_extras: [
+        Guides: ~r{guides/}
+      ],
+      groups_for_modules: [
+        Publishing: [ExNtfy.Publisher, ExNtfy.Publish.Options],
+        "Polling & Subscribing": [
+          ExNtfy.Poller,
+          ExNtfy.Subscription,
+          ExNtfy.Subscribe.Options,
+          ExNtfy.Handler,
+          ExNtfy.Stream.WS
+        ],
+        Types: [ExNtfy.Message, ExNtfy.Action, ExNtfy.Attachment, ExNtfy.Error],
+        "Client & Config": [ExNtfy.Client, ExNtfy.Config]
+      ]
     ]
   end
 end

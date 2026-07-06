@@ -1,17 +1,13 @@
 defmodule ExNtfy.Subscription.Transport do
-  @moduledoc """
-  The connection boundary `ExNtfy.Subscription` drives — everything else
-  (reconnect/backoff, `since` resume, idle watchdog, delivery) is
-  transport-agnostic.
-
-  Implementations own one connection whose incoming Erlang messages arrive in
-  the subscription's `handle_info/2` and are handed to `c:handle_message/2`.
-  The payload units they yield are fed to the format's stream parser.
-
-  `c:connect/3` errors distinguish fate: an `ExNtfy.Error` with `reason: nil`
-  is an HTTP-level rejection (fatal — the subscription stops); any other
-  error is transport-level and goes through the reconnect flow.
-  """
+  # The connection boundary ExNtfy.Subscription drives — everything else
+  # (reconnect/backoff, since resume, idle watchdog, delivery) is
+  # transport-agnostic. Implementations own one connection whose incoming
+  # Erlang messages arrive in the subscription's handle_info/2 and are handed
+  # to handle_message/2; the payload units they yield are fed to the format's
+  # stream parser. connect/3 errors distinguish fate: an ExNtfy.Error with
+  # reason: nil is an HTTP-level rejection (fatal — the subscription stops);
+  # any other error is transport-level and goes through the reconnect flow.
+  @moduledoc false
 
   alias ExNtfy.Error
 

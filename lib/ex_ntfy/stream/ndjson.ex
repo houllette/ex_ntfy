@@ -1,12 +1,10 @@
 defmodule ExNtfy.Stream.NDJSON do
-  @moduledoc """
-  Incremental parser for ntfy's `/json` stream (`application/x-ndjson`, one
-  JSON object per line).
-
-  HTTP chunks are not line-aligned, so the parser buffers a partial trailing
-  line and emits messages only once their `\\n` arrives. Blank and unparsable
-  lines are dropped. Pure and stateful: `new/0` then `feed/2`.
-  """
+  # Incremental parser for ntfy's /json stream (application/x-ndjson, one
+  # JSON object per line). HTTP chunks are not line-aligned, so the parser
+  # buffers a partial trailing line and emits messages only once their \n
+  # arrives. Blank and unparsable lines are dropped. Pure and stateful:
+  # new/0 then feed/2.
+  @moduledoc false
 
   alias ExNtfy.Message
 
