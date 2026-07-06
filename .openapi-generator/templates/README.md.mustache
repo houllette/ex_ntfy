@@ -1,0 +1,205 @@
+# {{moduleName}}
+
+{{description}}
+
+**API Version:** {{appVersion}}
+
+## Installation
+
+Add `{{packageName}}` to your list of dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:{{packageName}}, "~> {{packageVersion}}"}
+  ]
+end
+```
+
+Then run:
+
+```bash
+mix deps.get
+```
+
+## Configuration
+
+Configure the SDK in your `config/runtime.exs`:
+
+```elixir
+config :{{packageName}},
+  base_url: System.get_env("API_BASE_URL", "{{basePath}}"),
+  # Optional: Connection pool settings
+  pool_size: 25,
+  pool_count: 1,
+  connect_timeout: 5_000
+```
+
+## Usage
+
+### Basic Example
+
+```elixir
+# Create a connection
+conn = {{moduleName}}.Connection.new()
+
+# Make API calls
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#operation}}
+{{#hasParams}}
+{:ok, response} = {{moduleName}}.Api.{{classname}}.{{operationIdSnakeCase}}(conn{{#allParams}}, {{paramName}}{{/allParams}})
+{{/hasParams}}
+{{^hasParams}}
+{:ok, response} = {{moduleName}}.Api.{{classname}}.{{operationIdSnakeCase}}(conn)
+{{/hasParams}}
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+```
+
+### Custom Configuration
+
+```elixir
+# Custom base URL
+conn = {{moduleName}}.Connection.new(base_url: "https://custom.api.com")
+
+# Custom timeout (in milliseconds)
+conn = {{moduleName}}.Connection.new(timeout: 60_000)
+
+# Custom retry configuration
+conn = {{moduleName}}.Connection.new(
+  retry: [
+    max_retries: 5,
+    delay: 200,
+    max_delay: 10_000
+  ]
+)
+
+# Disable retries
+conn = {{moduleName}}.Connection.new(retry: [max_retries: 0])
+```
+
+### Error Handling
+
+All API functions return `{:ok, result}` or `{:error, reason}` tuples:
+
+```elixir
+case {{moduleName}}.Api.SomeApi.some_operation(conn, params) do
+  {:ok, %Tesla.Env{status: 200, body: body}} ->
+    # Success
+    IO.inspect(body)
+
+  {:ok, %Tesla.Env{status: status}} ->
+    # Non-200 response
+    IO.puts("Unexpected status: #{status}")
+
+  {:error, reason} ->
+    # Network error or timeout
+    IO.inspect(reason)
+end
+```
+
+## Telemetry
+
+The SDK emits telemetry events for all HTTP requests. You can attach handlers to monitor performance:
+
+```elixir
+:telemetry.attach(
+  "{{packageName}}-request-handler",
+  [:tesla, :request, :stop],
+  fn event, measurements, metadata, _config ->
+    # Log request duration, status, etc.
+    IO.inspect({event, measurements, metadata})
+  end,
+  nil
+)
+```
+
+## API Documentation
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+### {{moduleName}}.Api.{{classname}}
+
+{{description}}
+
+{{#operation}}
+#### `{{operationIdSnakeCase}}/{{#allParams}}{{#-last}}{{positionalParamCount}}{{/-last}}{{/allParams}}{{^allParams}}1{{/allParams}}`
+
+{{summary}}
+
+{{#notes}}
+{{notes}}
+{{/notes}}
+
+**Parameters:**
+{{#allParams}}
+- `{{paramName}}` ({{dataType}}){{#required}} - **Required**{{/required}}{{#description}} - {{description}}{{/description}}
+{{/allParams}}
+{{^allParams}}
+- `conn` ({{moduleName}}.Connection.t()) - The API connection
+{{/allParams}}
+
+**Returns:** `{:ok, {{#returnType}}{{returnType}}{{/returnType}}{{^returnType}}any(){{/returnType}}} | {:error, any()}`
+
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+## Models
+
+All models are defined under `{{moduleName}}.Model`:
+
+{{#models}}
+{{#model}}
+- `{{moduleName}}.Model.{{classname}}` - {{description}}
+{{/model}}
+{{/models}}
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+mix test
+
+# Run with coverage
+mix coveralls
+
+# Run specific test file
+mix test test/unit/connection_test.exs
+```
+
+### Code Quality
+
+```bash
+# Format code
+mix format
+
+# Run linter
+mix credo
+
+# Run type checker
+mix dialyzer
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to this project.
+
+## License
+
+{{licenseName}}
+
+## Links
+
+- [GitHub Repository](https://github.com/{{gitUserId}}/{{gitRepoId}})
+- [Hex Package](https://hex.pm/packages/{{packageName}})
+- [Documentation](https://hexdocs.pm/{{packageName}})
+- [Changelog](CHANGELOG.md)

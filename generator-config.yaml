@@ -1,0 +1,56 @@
+# OpenAPI Generator Configuration
+# This file configures how the elixir generator creates SDK code
+
+# Generator type
+generatorName: elixir
+
+# Output directory (relative to this file)
+outputDir: .
+
+# Input OpenAPI specification
+inputSpec: openapi-spec.yaml
+
+# Template directory for custom templates
+templateDir: .openapi-generator/templates
+
+# Global properties
+globalProperties:
+  # Skip files that are in .openapi-generator-ignore
+  skipFormModel: "false"
+
+# Additional properties for Elixir generator
+additionalProperties:
+  # Package name (will be replaced by setup.sh)
+  packageName: "{{PACKAGE_NAME}}"
+
+  # Module name (will be replaced by setup.sh)
+  moduleName: "{{MODULE_NAME}}"
+
+  # Package version
+  packageVersion: "0.1.0"
+
+  # Description
+  description: "Elixir SDK generated from OpenAPI specification"
+
+  # License
+  licenseName: "MIT"
+
+  # Author information
+  authorName: "{{AUTHOR_NAME}}"
+  authorEmail: "{{AUTHOR_EMAIL}}"
+
+  # GitHub repo (will be replaced by setup.sh)
+  gitRepoId: "{{GIT_REPO}}"
+  gitUserId: "{{GIT_USER}}"
+
+  # Library version
+  library: "tesla"
+
+# Type mappings (customize how OpenAPI types map to Elixir)
+typeMappings: {}
+
+# Import mappings (customize imports)
+importMappings: {}
+
+# Reserved words that should be escaped
+reservedWords: []

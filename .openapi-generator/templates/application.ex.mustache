@@ -1,0 +1,60 @@
+# NOTE: This file is based on a template used by [openapi-generator](https://github.com/openapitools/openapi-generator).
+#
+# Copyright 2018 OpenAPI-Generator Contributors (https://openapi-generator.tech)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+defmodule {{moduleName}}.Application do
+  @moduledoc """
+  Application module for {{moduleName}}.
+
+  Starts the Finch HTTP pool and other supervised processes.
+  """
+
+  use Application
+
+  @impl true
+  def start(_type, _args) do
+    children = [
+      # HTTP connection pool via Finch
+      {Finch,
+       name: {{moduleName}}.Finch,
+       pools: pool_config()}
+    ]
+
+    opts = [strategy: :one_for_one, name: {{moduleName}}.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
+
+  # Configure Finch connection pools
+  defp pool_config do
+    base_url = Application.get_env(:{{packageName}}, :base_url, "{{basePath}}")
+    uri = URI.parse(base_url)
+
+    default_pool = %{
+      size: Application.get_env(:{{packageName}}, :pool_size, 25),
+      count: Application.get_env(:{{packageName}}, :pool_count, 1),
+      conn_opts: [
+        transport_opts: [
+          timeout: Application.get_env(:{{packageName}}, :connect_timeout, 5_000)
+        ]
+      ]
+    }
+
+    case uri.scheme do
+      "https" -> %{default: default_pool}
+      "http" -> %{default: default_pool}
+      _ -> %{default: default_pool}
+    end
+  end
+end

@@ -1,0 +1,32 @@
+# OpenAPI Generator Ignore File
+# Files and directories that should NOT be overwritten during regeneration
+
+# Configuration files (custom)
+config/**
+.formatter.exs
+.tool-versions
+
+# Test infrastructure (completely custom)
+test/**
+
+# Scripts (custom automation)
+scripts/**
+
+# GitHub workflows (custom CI/CD)
+.github/**
+
+# Documentation (custom)
+CONTRIBUTING.md
+CHANGELOG.md
+README.md
+
+# Template configuration
+setup.json
+generator-config.yaml
+.openapi-generator-ignore
+
+# Custom templates
+.openapi-generator/templates/**
+
+# Mix lock file (let dependency resolution handle this)
+mix.lock

@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Elixir SDK Generator Setup Configuration",
+  "description": "Configuration for setting up a new SDK project from this template",
+  "type": "object",
+  "properties": {
+    "package_name": {
+      "type": "string",
+      "description": "Hex package name (lowercase, underscores)",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "examples": ["my_api_client", "acme_sdk"]
+    },
+    "module_name": {
+      "type": "string",
+      "description": "Main Elixir module name (PascalCase)",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "examples": ["MyApiClient", "AcmeSDK"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of the SDK",
+      "examples": ["Elixir client for the Acme API"]
+    },
+    "author_name": {
+      "type": "string",
+      "description": "Author name",
+      "examples": ["Jane Doe"]
+    },
+    "author_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Author email address",
+      "examples": ["jane@example.com"]
+    },
+    "git_user": {
+      "type": "string",
+      "description": "GitHub username or organization",
+      "examples": ["janedoe", "acme-corp"]
+    },
+    "git_repo": {
+      "type": "string",
+      "description": "GitHub repository name",
+      "examples": ["my-api-client", "acme-elixir-sdk"]
+    },
+    "base_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Default API base URL",
+      "examples": ["https://api.example.com", "https://api.acme.com/v1"]
+    },
+    "openapi_spec_path": {
+      "type": "string",
+      "description": "Path to OpenAPI specification (relative or URL)",
+      "examples": ["./openapi.yaml", "https://api.example.com/openapi.json"]
+    },
+    "hex_organization": {
+      "type": "string",
+      "description": "Hex.pm organization (optional, for private packages)",
+      "examples": ["acme"]
+    }
+  },
+  "required": [
+    "package_name",
+    "module_name",
+    "description",
+    "author_name",
+    "author_email",
+    "git_user",
+    "git_repo"
+  ]
+}

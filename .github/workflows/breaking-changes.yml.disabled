@@ -1,0 +1,171 @@
+name: Breaking Changes Detection
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "openapi-spec.yaml"
+      - "openapi-spec.yml"
+      - "openapi-spec.json"
+      - "lib/**/*.ex"
+
+jobs:
+  detect-breaking-changes:
+    name: Detect Breaking Changes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout base branch
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git checkout origin/${{ github.base_ref }} -- openapi-spec.yaml 2>/dev/null || \
+          git checkout origin/${{ github.base_ref }} -- openapi-spec.yml 2>/dev/null || \
+          git checkout origin/${{ github.base_ref }} -- openapi-spec.json 2>/dev/null || \
+          echo "No OpenAPI spec found on base branch"
+
+          if [ -f openapi-spec.yaml ]; then
+            mv openapi-spec.yaml openapi-spec.base.yaml
+          elif [ -f openapi-spec.yml ]; then
+            mv openapi-spec.yml openapi-spec.base.yaml
+          elif [ -f openapi-spec.json ]; then
+            mv openapi-spec.json openapi-spec.base.yaml
+          fi
+
+      - name: Checkout PR spec
+        run: |
+          git checkout ${{ github.head_ref }} -- openapi-spec.yaml 2>/dev/null || \
+          git checkout ${{ github.head_ref }} -- openapi-spec.yml 2>/dev/null || \
+          git checkout ${{ github.head_ref }} -- openapi-spec.json 2>/dev/null || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install OpenAPI diff tool
+        run: npm install -g oasdiff
+
+      - name: Check for breaking changes in spec
+        id: spec_check
+        continue-on-error: true
+        run: |
+          if [ -f openapi-spec.base.yaml ]; then
+            SPEC_FILE="openapi-spec.yaml"
+            [ -f openapi-spec.yml ] && SPEC_FILE="openapi-spec.yml"
+            [ -f openapi-spec.json ] && SPEC_FILE="openapi-spec.json"
+
+            oasdiff breaking openapi-spec.base.yaml "$SPEC_FILE" > breaking-changes.txt || true
+
+            if [ -s breaking-changes.txt ]; then
+              echo "breaking=true" >> $GITHUB_OUTPUT
+              echo "Breaking changes detected:"
+              cat breaking-changes.txt
+            else
+              echo "breaking=false" >> $GITHUB_OUTPUT
+              echo "No breaking changes detected"
+            fi
+          else
+            echo "breaking=false" >> $GITHUB_OUTPUT
+            echo "No base spec to compare against"
+          fi
+
+      - name: Analyze code changes
+        id: code_check
+        run: |
+          # Check if public API modules changed
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep "lib/" | grep "_api.ex" || true)
+
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "api_changed=true" >> $GITHUB_OUTPUT
+            echo "API modules changed:"
+            echo "$CHANGED_FILES"
+          else
+            echo "api_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check function signature changes
+        id: signature_check
+        run: |
+          # Simple heuristic: check for removed public functions
+          git diff origin/${{ github.base_ref }}...HEAD -- lib/ | grep "^-.*def " | grep -v "defp" || true
+
+          REMOVED_FUNCTIONS=$(git diff origin/${{ github.base_ref }}...HEAD -- lib/ | grep "^-.*def " | grep -v "defp" | wc -l)
+
+          if [ "$REMOVED_FUNCTIONS" -gt 0 ]; then
+            echo "functions_removed=true" >> $GITHUB_OUTPUT
+            echo "$REMOVED_FUNCTIONS public functions removed"
+          else
+            echo "functions_removed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR with results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const breaking = '${{ steps.spec_check.outputs.breaking }}' === 'true';
+            const apiChanged = '${{ steps.code_check.outputs.api_changed }}' === 'true';
+            const functionsRemoved = '${{ steps.signature_check.outputs.functions_removed }}' === 'true';
+
+            let body = '## 🔍 Breaking Changes Analysis\n\n';
+
+            if (breaking || apiChanged || functionsRemoved) {
+              body += '⚠️ **Potential breaking changes detected!**\n\n';
+
+              if (breaking) {
+                body += '### OpenAPI Spec Changes\n';
+                try {
+                  const changes = fs.readFileSync('breaking-changes.txt', 'utf8');
+                  body += '```\n' + changes + '\n```\n\n';
+                } catch (e) {
+                  body += 'Breaking changes detected but details unavailable.\n\n';
+                }
+              }
+
+              if (apiChanged) {
+                body += '### API Module Changes\n';
+                body += 'API modules have been modified. Please review carefully.\n\n';
+              }
+
+              if (functionsRemoved) {
+                body += '### Function Removals\n';
+                body += 'Public functions have been removed. This is a breaking change.\n\n';
+              }
+
+              body += '### ⚡ Action Required\n';
+              body += '- Review all changes carefully\n';
+              body += '- Update CHANGELOG.md with breaking changes\n';
+              body += '- Consider incrementing major version\n';
+              body += '- Add migration guide if needed\n';
+              body += '- Update documentation\n';
+
+            } else {
+              body += '✅ **No breaking changes detected**\n\n';
+              body += 'The changes appear to be backward compatible.\n';
+            }
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Fail if breaking changes detected
+        if: steps.spec_check.outputs.breaking == 'true' || steps.signature_check.outputs.functions_removed == 'true'
+        run: |
+          echo "::error::Breaking changes detected! Please review and document them."
+          echo "This check can be overridden by a maintainer if the breaking changes are intentional."
+          exit 1
+
+      - name: Upload breaking changes report
+        if: steps.spec_check.outputs.breaking == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: breaking-changes-report
+          path: breaking-changes.txt

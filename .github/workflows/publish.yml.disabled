@@ -1,0 +1,133 @@
+name: Publish to Hex.pm
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+
+  # Automatic trigger on version tags
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  ELIXIR_VERSION: "1.15"
+  OTP_VERSION: "26.0"
+  MIX_ENV: prod
+
+jobs:
+  publish:
+    name: Publish to Hex.pm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Run tests
+        run: MIX_ENV=test mix test
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Run Credo
+        run: mix credo --strict || true
+
+      - name: Build documentation
+        run: mix docs
+
+      - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Verify version matches mix.exs
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          MIX_VERSION=$(grep '@version' mix.exs | sed -E 's/.*"(.+)".*/\1/')
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+
+          if [ "$MIX_VERSION" != "$TAG_VERSION" ]; then
+            echo "Version mismatch!"
+            echo "mix.exs: $MIX_VERSION"
+            echo "Git tag: $TAG_VERSION"
+            exit 1
+          fi
+
+      - name: Publish to Hex.pm
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: |
+          mix hex.publish --yes
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## Release ${{ steps.version.outputs.version }}
+
+            ### Installation
+
+            Add to your `mix.exs` dependencies:
+
+            ```elixir
+            {:your_package_name, "~> ${{ steps.version.outputs.version }}"}
+            ```
+
+            ### Changes
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+            ### Documentation
+
+            - [Hex Docs](https://hexdocs.pm/your_package_name/${{ steps.version.outputs.version }})
+            - [GitHub](https://github.com/${{ github.repository }})
+
+          draft: false
+          prerelease: false
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: publish
+    if: always()
+
+    steps:
+      - name: Notify success
+        if: needs.publish.result == 'success'
+        run: |
+          echo "✅ Successfully published to Hex.pm!"
+          # Add your notification logic here (Slack, Discord, etc.)
+
+      - name: Notify failure
+        if: needs.publish.result == 'failure'
+        run: |
+          echo "❌ Failed to publish to Hex.pm!"
+          echo "Check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # Add your notification logic here
