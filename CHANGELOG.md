@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ExNtfy.subscribe/2`, `unsubscribe/1`, and `ExNtfy.Subscription` — long-lived
+  streaming subscriptions over `/json` (plus `/sse` and `/raw` via `format:`),
+  with automatic reconnect (exponential backoff + jitter, `since=<last id>`
+  resume), a keepalive watchdog (`idle_timeout:`), owner monitoring, and
+  `[:ex_ntfy, :subscription, ...]` telemetry
+- `ExNtfy.Handler` — optional behaviour for callback-style consumption inside
+  the subscription process (supervision-tree friendly)
+- `ExNtfy.stream/2` — a lazy `Enumerable` of messages that blocks the caller
+  and halts cleanly
+- `ExNtfy.Stream.NDJSON`, `ExNtfy.Stream.SSE`, `ExNtfy.Stream.Raw` — pure
+  incremental parsers with partial-line buffering across arbitrary chunk
+  boundaries
 - `ExNtfy.poll/2` and `poll!/2` — one-shot retrieval of cached messages
   (`GET /<topics>/json?poll=1`) with the full `since`/`scheduled`/filter
   surface, multi-topic support, ndjson parsing (unparsable lines skipped with
