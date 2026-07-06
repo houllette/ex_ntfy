@@ -1,14 +1,15 @@
 defmodule ExNtfy.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
   @source_url "https://github.com/houllette/ex_ntfy"
 
   def project do
     [
       app: :ex_ntfy,
       version: @version,
-      elixir: "~> 1.20",
+      # 1.18 is the floor: it introduced the built-in JSON module.
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -86,6 +87,7 @@ defmodule ExNtfy.MixProject do
         "README.md",
         "guides/publishing.md",
         "guides/subscriptions.md",
+        "guides/testing.md",
         "CHANGELOG.md"
       ],
       groups_for_extras: [

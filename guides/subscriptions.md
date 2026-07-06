@@ -119,6 +119,28 @@ ExNtfy.subscribe("alerts",
     `{:mint_web_socket, "~> 1.0"}`. Without it, `subscribe/2` raises an
     `ArgumentError` telling you what to add.
 
+## Running many subscriptions: pool sizing
+
+Each HTTP-format subscription (`:json`/`:sse`/`:raw`) holds one connection
+from Req's **default shared Finch pool** — the same pool your publishes and
+polls use. A handful of subscriptions is fine; dozens against the same host
+can exhaust the pool and starve your publishes (or vice versa). Give
+subscriptions their own pool:
+
+```elixir
+# in your supervision tree
+children = [
+  {Finch, name: MyApp.NtfySubscriptionPool, pools: %{default: [size: 50]}},
+  {ExNtfy.Subscription,
+   topics: "alerts",
+   handler: {MyApp.NtfyHandler, []},
+   req_options: [finch: MyApp.NtfySubscriptionPool]}
+]
+```
+
+`format: :ws` subscriptions open their own dedicated connection (Mint,
+outside any pool), so they don't compete.
+
 ## Telemetry
 
 `[:ex_ntfy, :subscription, :connected | :disconnected | :message]` fire with

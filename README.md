@@ -11,10 +11,12 @@ them, on ntfy.sh or your self-hosted server. Built on
 
 ## Installation
 
+Requires Elixir 1.18+ (for the built-in `JSON` module) on OTP 26+.
+
 ```elixir
 def deps do
   [
-    {:ex_ntfy, "~> 0.1.0"},
+    {:ex_ntfy, "~> 0.1.1"},
     # optional — only for WebSocket subscriptions (format: :ws)
     {:mint_web_socket, "~> 1.0"}
   ]
@@ -119,6 +121,19 @@ the `?auth=` parameter instead.
 ## Documentation
 
 Full API reference and guides: <https://hexdocs.pm/ex_ntfy>.
+
+## Status, scope & versioning
+
+ExNtfy covers ntfy's **pub-sub API surface**: publishing (all options,
+attachments, templates, the update/clear/delete lifecycle), polling, and
+streaming subscriptions over ndjson/SSE/raw/WebSocket. Server administration
+(accounts, access control, tiers) is out of scope.
+
+This is a 0.x library and follows semver accordingly: breaking changes bump
+the minor version and are called out in the
+[CHANGELOG](https://github.com/houllette/ex_ntfy/blob/main/CHANGELOG.md).
+The API is small and considered stable; 1.0 comes after it has soaked in
+real-world use without needing breaking changes.
 
 ## License
 

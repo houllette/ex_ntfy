@@ -5,7 +5,7 @@ defmodule ExNtfy.ClientTest do
 
   alias ExNtfy.{Client, Error, Fixtures}
 
-  @user_agent "ex_ntfy/0.1.0 (Elixir)"
+  @user_agent "ex_ntfy/#{Mix.Project.config()[:version]} (Elixir)"
 
   defp echo_conn(fun) do
     req_stub(fn conn ->
