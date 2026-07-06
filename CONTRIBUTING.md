@@ -68,6 +68,25 @@ regression test that pins the fix must be a stub/Bypass test.
   `@moduledoc false`.
 - Telemetry metadata never includes credentials or message contents.
 
+## Releasing (maintainers)
+
+1. Land changes on `main` with CHANGELOG entries under `[Unreleased]`.
+2. In one release commit: move the `[Unreleased]` entries under a new
+   `## [x.y.z] — YYYY-MM-DD` heading (keep an empty `[Unreleased]` above it)
+   and bump `@version` in `mix.exs`.
+3. Tag the merged release commit and push:
+
+   ```sh
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   ```
+
+The publish workflow (`.github/workflows/publish.yml`) runs every quality
+gate, verifies the tag matches `mix.exs`, and publishes to Hex with the
+`HEX_API_KEY` repo secret — skipping the publish step if that version is
+already on Hex, so re-tagging or re-running is safe. To rehearse without
+tagging, trigger the workflow manually (`workflow_dispatch`) with its
+default dry-run mode.
+
 ## Reporting bugs
 
 Include your Elixir/OTP versions, the ntfy server (ntfy.sh or self-hosted +
