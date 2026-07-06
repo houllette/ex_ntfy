@@ -126,8 +126,9 @@ defmodule ExNtfy do
       |> Enum.take(5)
 
   All subscribe filters (`ExNtfy.Subscribe.Options`) and client options
-  apply; `format: :sse | :raw` selects the other transports (`:raw` carries
-  bodies only — no metadata, no resume).
+  apply; `format: :sse | :raw | :ws` selects the other transports (`:raw`
+  carries bodies only — no metadata, no resume; `:ws` subscribes over
+  WebSocket and requires the optional `:mint_web_socket` dependency).
 
   Client options mix into the same keyword list — for a self-hosted server
   with authentication:

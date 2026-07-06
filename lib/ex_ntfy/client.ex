@@ -72,11 +72,20 @@ defmodule ExNtfy.Client do
     opts |> new() |> request(req_opts)
   end
 
-  defp encode_auth(nil, _via), do: {[], nil}
+  # Also used by the WebSocket transport, which builds its upgrade request
+  # without Req.
+  @doc false
+  @spec user_agent() :: String.t()
+  def user_agent, do: @user_agent
 
-  defp encode_auth(auth, :header), do: {[{"authorization", header_value(auth)}], nil}
+  @doc false
+  @spec encode_auth(Config.auth(), :header | :query) ::
+          {[{String.t(), String.t()}], keyword() | nil}
+  def encode_auth(nil, _via), do: {[], nil}
 
-  defp encode_auth(auth, :query) do
+  def encode_auth(auth, :header), do: {[{"authorization", header_value(auth)}], nil}
+
+  def encode_auth(auth, :query) do
     {[], [auth: Base.url_encode64(header_value(auth), padding: false)]}
   end
 

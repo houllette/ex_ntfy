@@ -8,11 +8,12 @@ defmodule ExNtfy.Subscription do
       doc: "Topic(s) to subscribe to — a string, list, or comma-separated string."
     ],
     format: [
-      type: {:in, [:json, :sse, :raw]},
+      type: {:in, [:json, :sse, :raw, :ws]},
       default: :json,
       doc:
         "Stream format. `:json` is the primary; `:raw` carries bodies only " <>
-          "(no metadata, so no `since` resume)."
+          "(no metadata, so no `since` resume); `:ws` subscribes over " <>
+          "WebSocket and requires the optional `:mint_web_socket` dependency."
     ],
     handler: [
       type: {:custom, __MODULE__, :validate_handler, []},
@@ -76,6 +77,11 @@ defmodule ExNtfy.Subscription do
   are accepted. Req's own retry is disabled on the stream request — this
   module's reconnect loop is in charge.
 
+  `format: :ws` subscribes over WebSocket (`GET /<topics>/ws`) with identical
+  semantics — it needs the **optional** `:mint_web_socket` dependency in your
+  deps, and `subscribe/2` raises a clear `ArgumentError` without it. See
+  `ExNtfy.Stream.WS`.
+
   A non-2xx response is treated as fatal (it won't fix itself by retrying —
   think 403): the subscription delivers `{:down, %ExNtfy.Error{}}` and stops
   with `{:shutdown, error}` regardless of `reconnect:`.
@@ -92,14 +98,16 @@ defmodule ExNtfy.Subscription do
 
   use GenServer
 
-  alias ExNtfy.{Client, Config, Error, Message}
-  alias ExNtfy.Stream.{NDJSON, Raw, SSE}
+  alias ExNtfy.{Config, Error, Message}
+  alias ExNtfy.Stream.{NDJSON, Raw, SSE, WS}
   alias ExNtfy.Subscribe
+  alias ExNtfy.Subscription.HTTPTransport
 
   @schema NimbleOptions.new!(schema_def)
   @sub_keys Keyword.keys(schema_def)
 
-  @parsers %{json: NDJSON, sse: SSE, raw: Raw}
+  @parsers %{json: NDJSON, sse: SSE, raw: Raw, ws: WS}
+  @transports %{json: HTTPTransport, sse: HTTPTransport, raw: HTTPTransport, ws: WS}
 
   @doc """
   Starts a subscription linked to the caller. Options as described in the
@@ -181,6 +189,7 @@ defmodule ExNtfy.Subscription do
 
     {sub_specific, rest} = Keyword.split(opts, @sub_keys)
     sub_specific = NimbleOptions.validate!(sub_specific, @schema)
+    if sub_specific[:format] == :ws, do: WS.ensure_available!()
     {client_opts, subscribe_opts} = Keyword.split(rest, Config.keys())
 
     _ = Config.resolve(client_opts)
@@ -212,6 +221,7 @@ defmodule ExNtfy.Subscription do
       topics: config.topics,
       path: config.path,
       parser_mod: Map.fetch!(@parsers, config.format),
+      transport: Map.fetch!(@transports, config.format),
       format: config.format,
       handler: handler_mod,
       handler_state: handler_state,
@@ -222,8 +232,8 @@ defmodule ExNtfy.Subscription do
       reconnect_max_ms: config.reconnect_max_ms,
       idle_timeout: config.idle_timeout,
       subscribe_opts: config.subscribe_opts,
-      req: Client.new(config.client_opts),
-      resp: nil,
+      client_opts: config.client_opts,
+      conn: nil,
       parser: nil,
       connected?: false,
       last_id: nil,
@@ -240,7 +250,7 @@ defmodule ExNtfy.Subscription do
 
   @impl GenServer
   def handle_info({:idle_timeout, ref}, %{idle_ref: ref} = state) do
-    cancel_resp(state)
+    close_conn(state)
     handle_disconnect(%{state | idle_ref: nil, idle_timer: nil}, :idle_timeout)
   end
 
@@ -252,11 +262,20 @@ defmodule ExNtfy.Subscription do
     {:stop, :normal, state}
   end
 
-  def handle_info(message, %{resp: resp} = state) when not is_nil(resp) do
-    case Req.parse_message(resp, message) do
-      {:ok, chunks} -> process_chunks(chunks, state)
-      {:error, reason} -> handle_disconnect(state, {:transport, reason})
-      :unknown -> {:noreply, state}
+  def handle_info(message, %{conn: conn} = state) when not is_nil(conn) do
+    case state.transport.handle_message(message, conn) do
+      {:data, units, conn} ->
+        state = %{state | conn: conn} |> reset_idle() |> feed_units(units)
+        {:noreply, state}
+
+      {:closed, units, reason} ->
+        handle_disconnect(feed_units(state, units), reason)
+
+      {:error, reason} ->
+        handle_disconnect(state, {:transport, reason})
+
+      :unknown ->
+        {:noreply, state}
     end
   end
 
@@ -264,21 +283,13 @@ defmodule ExNtfy.Subscription do
 
   @impl GenServer
   def terminate(_reason, state) do
-    cancel_resp(state)
+    close_conn(state)
   end
 
   defp do_connect(state) do
-    request_opts = [
-      method: :get,
-      url: state.path,
-      params: query_params(state),
-      into: :self,
-      retry: false
-    ]
-
-    case Client.request(state.req, request_opts) do
-      {:ok, %Req.Response{} = resp} ->
-        state = %{state | resp: resp, parser: state.parser_mod.new(), connected?: true}
+    case state.transport.connect(state.client_opts, state.path, query_params(state)) do
+      {:ok, conn} ->
+        state = %{state | conn: conn, parser: state.parser_mod.new(), connected?: true}
         # :raw has no open event to confirm the stream, so reset backoff here.
         state = if state.format == :raw, do: %{state | attempt: 0}, else: state
         telemetry(:connected, state)
@@ -303,19 +314,10 @@ defmodule ExNtfy.Subscription do
   defp maybe_resume(subscribe_opts, nil), do: subscribe_opts
   defp maybe_resume(subscribe_opts, last_id), do: Keyword.put(subscribe_opts, :since, last_id)
 
-  defp process_chunks(chunks, state) do
-    Enum.reduce_while(chunks, {:noreply, state}, fn
-      {:data, data}, {:noreply, state} ->
-        state = reset_idle(state)
-        {messages, parser} = state.parser_mod.feed(state.parser, data)
-        state = Enum.reduce(messages, %{state | parser: parser}, &route_message/2)
-        {:cont, {:noreply, state}}
-
-      :done, {:noreply, state} ->
-        {:halt, handle_disconnect(state, :closed)}
-
-      {:trailers, _trailers}, acc ->
-        {:cont, acc}
+  defp feed_units(state, units) do
+    Enum.reduce(units, state, fn unit, state ->
+      {messages, parser} = state.parser_mod.feed(state.parser, unit)
+      Enum.reduce(messages, %{state | parser: parser}, &route_message/2)
     end)
   end
 
@@ -366,10 +368,10 @@ defmodule ExNtfy.Subscription do
       if state.connected? do
         telemetry(:disconnected, state)
 
-        %{state | connected?: false, resp: nil, parser: nil}
+        %{state | connected?: false, conn: nil, parser: nil}
         |> notify_lifecycle(:disconnected)
       else
-        %{state | resp: nil, parser: nil}
+        %{state | conn: nil, parser: nil}
       end
 
     maybe_reconnect(state, reason)
@@ -408,8 +410,8 @@ defmodule ExNtfy.Subscription do
     %{state | idle_timer: nil, idle_ref: nil}
   end
 
-  defp cancel_resp(%{resp: nil}), do: :ok
-  defp cancel_resp(%{resp: resp}), do: Req.cancel_async_response(resp)
+  defp close_conn(%{conn: nil}), do: :ok
+  defp close_conn(%{conn: conn, transport: transport}), do: transport.close(conn)
 
   defp telemetry(event, state) do
     :telemetry.execute(
