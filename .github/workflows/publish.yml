@@ -47,6 +47,26 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      - name: Check tag matches mix.exs version
+        if: github.event_name == 'push'
+        run: |
+          VERSION=$(grep -m1 '@version "' mix.exs | sed 's/.*"\(.*\)".*/\1/')
+          if [ "${{ github.ref_name }}" != "v$VERSION" ]; then
+            echo "::error::Tag ${{ github.ref_name }} does not match mix.exs version v$VERSION"
+            exit 1
+          fi
+
+      - name: Check whether this version is already on Hex
+        id: hex_version
+        run: |
+          VERSION=$(grep -m1 '@version "' mix.exs | sed 's/.*"\(.*\)".*/\1/')
+          if curl -fsS "https://hex.pm/api/packages/ex_ntfy/releases/$VERSION" > /dev/null 2>&1; then
+            echo "ex_ntfy $VERSION is already published — publish steps will be skipped."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check formatting
         run: mix format --check-formatted
 
@@ -69,7 +89,10 @@ jobs:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
 
       - name: Publish
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        if: >-
+          steps.hex_version.outputs.published == 'false' &&
+          (github.event_name == 'push' ||
+           (github.event_name == 'workflow_dispatch' && !inputs.dry_run))
         run: mix hex.publish --yes
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
