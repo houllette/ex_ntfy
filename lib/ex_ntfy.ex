@@ -83,6 +83,52 @@ defmodule ExNtfy do
       # Filters: priority is any-match, tags must all match
       ExNtfy.poll("mytopic", priority: [:high, :urgent], tags: [:warning], scheduled: true)
 
+  ## Subscribing (streaming)
+
+  Long-lived subscriptions reconnect automatically with backoff, resume from
+  the last seen message (`since=<id>`), and watch for dead connections via a
+  keepalive watchdog. Three consumption styles:
+
+  **Message-passing** — events arrive in the calling process's mailbox:
+
+      {:ok, sub} = ExNtfy.subscribe("alerts", since: "10m")
+
+      receive do
+        {:ntfy, ^sub, %ExNtfy.Message{} = message} -> handle(message)
+        {:ntfy_lifecycle, ^sub, :connected} -> :ok
+        {:ntfy_lifecycle, ^sub, :disconnected} -> :ok
+        {:ntfy_lifecycle, ^sub, {:message_clear, message}} -> dismiss(message)
+        {:ntfy_lifecycle, ^sub, {:down, reason}} -> react(reason)
+      end
+
+      ExNtfy.unsubscribe(sub)
+
+  The subscription stops when its owner (the caller, or `owner:`) dies.
+
+  **Handler behaviour** — callbacks run in the subscription process; put it
+  in your supervision tree:
+
+      children = [
+        {ExNtfy.Subscription,
+         topics: ["alerts", "backups"],
+         handler: {MyApp.NtfyHandler, []},
+         auth: {:token, "tk_..."},
+         name: MyApp.NtfySub}
+      ]
+
+  See `ExNtfy.Handler` for the callbacks. A crashing handler takes the
+  subscription down with it — the supervisor restarts both.
+
+  **Lazy stream** — blocks the calling process, halts cleanly:
+
+      ExNtfy.stream("alerts")
+      |> Stream.filter(&(&1.priority >= 4))
+      |> Enum.take(5)
+
+  All subscribe filters (`ExNtfy.Subscribe.Options`) and client options
+  apply; `format: :sse | :raw` selects the other transports (`:raw` carries
+  bodies only — no metadata, no resume).
+
   Client options mix into the same keyword list — for a self-hosted server
   with authentication:
 
@@ -96,7 +142,7 @@ defmodule ExNtfy do
   message or raises.
   """
 
-  alias ExNtfy.{Poller, Publisher}
+  alias ExNtfy.{Poller, Publisher, Subscription}
 
   @doc "Publishes a message as JSON. See `ExNtfy.Publisher.publish/3`."
   defdelegate publish(topic, message, opts \\ []), to: Publisher
@@ -130,4 +176,13 @@ defmodule ExNtfy do
 
   @doc "Like `poll/2`, but raises on failure. See `ExNtfy.Poller.poll!/2`."
   defdelegate poll!(topics, opts \\ []), to: Poller
+
+  @doc "Starts a streaming subscription. See `ExNtfy.Subscription.subscribe/2`."
+  defdelegate subscribe(topics, opts \\ []), to: Subscription
+
+  @doc "Stops a subscription cleanly. See `ExNtfy.Subscription.unsubscribe/1`."
+  defdelegate unsubscribe(subscription), to: Subscription
+
+  @doc "A lazy stream of messages. See `ExNtfy.Subscription.stream/2`."
+  defdelegate stream(topics, opts \\ []), to: Subscription
 end

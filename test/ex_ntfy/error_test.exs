@@ -39,6 +39,12 @@ defmodule ExNtfy.ErrorTest do
       assert %Error{code: nil, http: 500, error: nil, link: nil} = Error.from_response(500, nil)
     end
 
+    test "tolerates a struct body (e.g. an unconsumed Req.Response.Async)" do
+      error = Error.from_response(403, struct(Req.Response.Async))
+
+      assert %Error{code: nil, http: 403, error: nil, link: nil} = error
+    end
+
     test "falls back to the HTTP status when the JSON body lacks one" do
       error = Error.from_response(400, %{"code" => 40_001, "error" => "bad request"})
 

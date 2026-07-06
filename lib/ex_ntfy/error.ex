@@ -27,6 +27,12 @@ defmodule ExNtfy.Error do
   field prefers ntfy's own `"http"` value, falling back to the response status.
   """
   @spec from_response(non_neg_integer(), map() | binary() | nil) :: t()
+  def from_response(status, body) when is_struct(body) do
+    # e.g. an unconsumed %Req.Response.Async{} from a streaming request —
+    # there is no error JSON to read, only the status.
+    %__MODULE__{http: status}
+  end
+
   def from_response(status, body) when is_map(body) do
     %__MODULE__{
       code: body["code"],
