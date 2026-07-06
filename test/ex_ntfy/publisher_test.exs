@@ -3,7 +3,7 @@ defmodule ExNtfy.PublisherTest do
 
   import ExNtfy.TestHelpers
 
-  alias ExNtfy.{Action, Error, Fixtures, Message}
+  alias ExNtfy.{Action, Attachment, Error, Fixtures, Message}
 
   describe "publish/3" do
     test "POSTs a minimal JSON body to / and parses the created message" do
@@ -278,6 +278,218 @@ defmodule ExNtfy.PublisherTest do
                  "mytopic",
                  [title: "Backup done", tags: [:warning, "backup"], priority: 5] ++ opts
                )
+    end
+  end
+
+  describe "publish_file/3" do
+    test "PUTs iodata to /<topic> byte-identical with X-Filename" do
+      opts =
+        req_stub(fn conn ->
+          assert conn.method == "PUT"
+          assert conn.request_path == "/mytopic"
+          {:ok, body, conn} = Plug.Conn.read_body(conn)
+          assert body == "chunk1chunk2"
+          assert Plug.Conn.get_req_header(conn, "x-filename") == ["data.bin"]
+          Req.Test.json(conn, Fixtures.upload_response_map())
+        end)
+
+      assert {:ok, %Message{}} =
+               ExNtfy.publish_file(
+                 "mytopic",
+                 ["chunk1", "chunk2"],
+                 [filename: "data.bin"] ++ opts
+               )
+    end
+
+    @tag :tmp_dir
+    test "{:file, path} streams the file; filename defaults to the basename", %{
+      tmp_dir: tmp_dir
+    } do
+      path = Path.join(tmp_dir, "flower.jpg")
+      content = :crypto.strong_rand_bytes(200_000)
+      File.write!(path, content)
+
+      opts =
+        req_stub(fn conn ->
+          assert conn.method == "PUT"
+          {:ok, body, conn} = Plug.Conn.read_body(conn)
+          assert body == content
+          assert Plug.Conn.get_req_header(conn, "x-filename") == ["flower.jpg"]
+          Req.Test.json(conn, Fixtures.upload_response_map())
+        end)
+
+      assert {:ok, %Message{}} = ExNtfy.publish_file("mytopic", {:file, path}, opts)
+    end
+
+    @tag :tmp_dir
+    test "an explicit :filename overrides the {:file, path} basename", %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "upload.tmp")
+      File.write!(path, "data")
+
+      opts =
+        req_stub(fn conn ->
+          assert Plug.Conn.get_req_header(conn, "x-filename") == ["report.pdf"]
+          Req.Test.json(conn, Fixtures.upload_response_map())
+        end)
+
+      assert {:ok, %Message{}} =
+               ExNtfy.publish_file("mytopic", {:file, path}, [filename: "report.pdf"] ++ opts)
+    end
+
+    test "Phase-3 options ride along as headers" do
+      opts =
+        req_stub(fn conn ->
+          assert Plug.Conn.get_req_header(conn, "x-title") == ["=?UTF-8?B?R3LDvMOfZSDwn5GL?="]
+          assert Plug.Conn.get_req_header(conn, "x-message") == ["Here is the report"]
+          assert Plug.Conn.get_req_header(conn, "x-priority") == ["5"]
+          assert Plug.Conn.get_req_header(conn, "x-delay") == ["30m"]
+          Req.Test.json(conn, Fixtures.upload_response_map())
+        end)
+
+      assert {:ok, %Message{}} =
+               ExNtfy.publish_file(
+                 "mytopic",
+                 "bytes",
+                 [
+                   title: "Grüße 👋",
+                   message: "Here is the report",
+                   priority: :urgent,
+                   delay: "30m"
+                 ] ++ opts
+               )
+    end
+
+    test "the upload response parses a fully populated attachment" do
+      opts = req_stub(fn conn -> Req.Test.json(conn, Fixtures.upload_response_map()) end)
+
+      assert {:ok, %Message{attachment: %Attachment{} = attachment}} =
+               ExNtfy.publish_file("mytopic", "bytes", opts)
+
+      assert attachment.name == "flower.jpg"
+      assert attachment.url == "https://ntfy.sh/file/oaFAdEY1KC.jpg"
+      assert attachment.type == "image/jpeg"
+      assert attachment.size == 12_345
+      assert attachment.expires == 1_735_963_200
+    end
+
+    test "a 413 (attachment too large) maps to %Error{}" do
+      opts =
+        req_stub(fn conn ->
+          conn
+          |> Plug.Conn.put_status(413)
+          |> Req.Test.json(%{
+            "code" => 41_301,
+            "http" => 413,
+            "error" => "attachment too large"
+          })
+        end)
+
+      assert {:error, %Error{code: 41_301, http: 413, error: "attachment too large"}} =
+               ExNtfy.publish_file("mytopic", "bytes", opts)
+    end
+
+    test "publish_file!/3 returns the message and raises on failure" do
+      ok_opts = req_stub(fn conn -> Req.Test.json(conn, Fixtures.upload_response_map()) end)
+      assert %Message{id: "0d5SgUWXH2"} = ExNtfy.publish_file!("mytopic", "bytes", ok_opts)
+
+      error_opts =
+        req_stub(fn conn ->
+          conn
+          |> Plug.Conn.put_status(429)
+          |> Req.Test.json(Fixtures.error_429_map())
+        end)
+
+      assert_raise Error, fn -> ExNtfy.publish_file!("mytopic", "bytes", error_opts) end
+    end
+  end
+
+  describe "update/4" do
+    test "publishes with sequence_id in the JSON body; the response carries it" do
+      opts =
+        req_stub(fn conn ->
+          assert conn.method == "POST"
+          assert conn.request_path == "/"
+          {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+          assert JSON.decode!(body) == %{
+                   "topic" => "mytopic",
+                   "message" => "Deploy at 80%",
+                   "sequence_id" => "xE73Iyuabi",
+                   "priority" => 3
+                 }
+
+          Req.Test.json(
+            conn,
+            Map.put(Fixtures.publish_response_map(), "sequence_id", "xE73Iyuabi")
+          )
+        end)
+
+      assert {:ok, %Message{sequence_id: "xE73Iyuabi"}} =
+               ExNtfy.update("mytopic", "xE73Iyuabi", "Deploy at 80%", [priority: 3] ++ opts)
+    end
+  end
+
+  describe "clear/3" do
+    test "PUTs /<topic>/<seq>/clear with no body" do
+      opts =
+        req_stub(fn conn ->
+          assert conn.method == "PUT"
+          assert conn.request_path == "/mytopic/xE73Iyuabi/clear"
+          {:ok, body, conn} = Plug.Conn.read_body(conn)
+          assert body == ""
+          Req.Test.json(conn, Fixtures.clear_response_map())
+        end)
+
+      assert {:ok, %Message{event: :message_clear, sequence_id: "xE73Iyuabi"}} =
+               ExNtfy.clear("mytopic", "xE73Iyuabi", opts)
+    end
+
+    test "a 429 maps to %Error{}" do
+      opts =
+        req_stub(fn conn ->
+          conn
+          |> Plug.Conn.put_status(429)
+          |> Req.Test.json(Fixtures.error_429_map())
+        end)
+
+      assert {:error, %Error{code: 42_901, http: 429}} =
+               ExNtfy.clear("mytopic", "xE73Iyuabi", opts)
+    end
+  end
+
+  describe "delete/3" do
+    test "sends DELETE /<topic>/<seq>" do
+      opts =
+        req_stub(fn conn ->
+          assert conn.method == "DELETE"
+          assert conn.request_path == "/mytopic/xE73Iyuabi"
+          Req.Test.json(conn, Fixtures.delete_response_map())
+        end)
+
+      assert {:ok, %Message{event: :message_delete, sequence_id: "xE73Iyuabi"}} =
+               ExNtfy.delete("mytopic", "xE73Iyuabi", opts)
+    end
+  end
+
+  describe "path escaping" do
+    test "sequence IDs with URL-meaningful characters are escaped" do
+      opts =
+        req_stub(fn conn ->
+          assert conn.request_path == "/mytopic/seq%20id%2F%3Fx/clear"
+          Req.Test.json(conn, Fixtures.clear_response_map())
+        end)
+
+      assert {:ok, %Message{}} = ExNtfy.clear("mytopic", "seq id/?x", opts)
+    end
+
+    test "topic names are escaped everywhere" do
+      opts =
+        req_stub(fn conn ->
+          assert conn.request_path == "/my%20topic"
+          Req.Test.json(conn, Fixtures.publish_response_map())
+        end)
+
+      assert {:ok, %Message{}} = ExNtfy.publish_raw("my topic", "body", opts)
     end
   end
 

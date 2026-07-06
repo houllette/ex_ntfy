@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ExNtfy.publish_file/3` and `publish_file!/3` — binary attachment uploads
+  (`PUT /<topic>`) accepting iodata, chunk streams, or `{:file, path}`
+  (streamed from disk, filename defaulting to the basename), with all publish
+  options riding along as headers
+- `ExNtfy.update/4`, `clear/3`, and `delete/3` — the sequence-ID notification
+  lifecycle: republish with the same sequence ID, `PUT /<topic>/<seq>/clear`,
+  and `DELETE /<topic>/<seq>`
+- Topic names and sequence IDs are percent-escaped in request paths
 - `ExNtfy.publish/3`, `publish!/3`, `publish_raw/3`, and `trigger/2` —
   publishing with full option coverage (title, priority, tags, markdown,
   delay, click, icon, attach, filename, actions, email, call, sequence_id,
