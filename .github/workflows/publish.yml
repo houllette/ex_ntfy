@@ -1,60 +1,21 @@
-name: CI
+name: Publish to Hex
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — build and validate the package, do not publish"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    name: Test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - elixir: "1.20"
-            otp: "29"
-          - elixir: "1.20"
-            otp: "28"
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: ${{ matrix.elixir }}
-          otp-version: ${{ matrix.otp }}
-
-      - name: Cache deps
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-          key: deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
-          restore-keys: |
-            deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-
-
-      - name: Install dependencies
-        run: mix deps.get
-
-      - name: Check formatting
-        run: mix format --check-formatted
-
-      - name: Run Credo
-        run: mix credo --strict
-
-      - name: Run tests
-        run: mix test --warnings-as-errors
-
-      - name: Run coverage
-        run: mix coveralls
-
-  dialyzer:
-    name: Dialyzer
+  publish:
+    name: Gates + publish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,8 +47,29 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Run Credo
+        run: mix credo --strict
+
+      - name: Run tests
+        run: mix test --warnings-as-errors
+
       - name: Run Dialyzer
         run: mix dialyzer
 
       - name: Check docs build warning-free
         run: mix docs --warnings-as-errors
+
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: mix hex.publish --dry-run --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+
+      - name: Publish
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        run: mix hex.publish --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] — 2026-07-05
 
 ### Added
 
@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **optional** `:mint_web_socket` dependency, with identical semantics to the
   HTTP stream formats (reconnect/resume, watchdog, all consumption styles);
   `ExNtfy.Subscription` now drives connections through a
-  `Subscription.Transport` boundary
+  transport boundary
 - `ExNtfy.subscribe/2`, `unsubscribe/1`, and `ExNtfy.Subscription` — long-lived
   streaming subscriptions over `/json` (plus `/sse` and `/raw` via `format:`),
   with automatic reconnect (exponential backoff + jitter, `since=<last id>`
@@ -23,9 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the subscription process (supervision-tree friendly)
 - `ExNtfy.stream/2` — a lazy `Enumerable` of messages that blocks the caller
   and halts cleanly
-- `ExNtfy.Stream.NDJSON`, `ExNtfy.Stream.SSE`, `ExNtfy.Stream.Raw` — pure
-  incremental parsers with partial-line buffering across arbitrary chunk
-  boundaries
+- Pure incremental stream parsers (ndjson, SSE, raw) with partial-line
+  buffering across arbitrary chunk boundaries
 - `ExNtfy.poll/2` and `poll!/2` — one-shot retrieval of cached messages
   (`GET /<topics>/json?poll=1`) with the full `since`/`scheduled`/filter
   surface, multi-topic support, ndjson parsing (unparsable lines skipped with
