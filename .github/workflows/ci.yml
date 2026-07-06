@@ -28,7 +28,7 @@ jobs:
             # formatter output can differ across Elixir versions
             lint: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: erlef/setup-beam@v1
         with:
@@ -67,7 +67,7 @@ jobs:
     name: Dialyzer
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: erlef/setup-beam@v1
         id: beam
