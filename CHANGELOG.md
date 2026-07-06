@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `format: :ws` — WebSocket subscriptions (`GET /<topics>/ws`) via the
+  **optional** `:mint_web_socket` dependency, with identical semantics to the
+  HTTP stream formats (reconnect/resume, watchdog, all consumption styles);
+  `ExNtfy.Subscription` now drives connections through a
+  `Subscription.Transport` boundary
 - `ExNtfy.subscribe/2`, `unsubscribe/1`, and `ExNtfy.Subscription` — long-lived
   streaming subscriptions over `/json` (plus `/sse` and `/raw` via `format:`),
   with automatic reconnect (exponential backoff + jitter, `since=<last id>`

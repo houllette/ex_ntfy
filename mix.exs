@@ -16,6 +16,9 @@ defmodule ExNtfy.MixProject do
       package: package(),
       docs: docs(),
       test_coverage: [tool: ExCoveralls],
+      # Mint.WebSocket comes from the optional :mint_web_socket dependency;
+      # all references are runtime and guarded by Stream.WS.ensure_available!/0.
+      elixirc_options: [no_warn_undefined: [Mint.WebSocket]],
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/ex_ntfy.plt"}
       ]
@@ -48,8 +51,12 @@ defmodule ExNtfy.MixProject do
       {:req, "~> 0.6"},
       {:nimble_options, "~> 1.1"},
       {:telemetry, "~> 1.4"},
+      # optional: WebSocket transport (format: :ws)
+      {:mint_web_socket, "~> 1.0", optional: true},
       # dev/test
+      {:bandit, "~> 1.12", only: :test},
       {:bypass, "~> 2.1", only: :test},
+      {:websock_adapter, "~> 0.6", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
