@@ -34,6 +34,40 @@ defmodule ExNtfy do
       # Webhook-style GET, e.g. from a curl one-liner or cron job
       ExNtfy.trigger("mytopic", message: "cron ran", tags: [:clock])
 
+  ## Attachments
+
+  Attach by URL with the `:attach` option, or upload a binary with
+  `publish_file/3` — iodata, a stream, or `{:file, path}` (streamed from
+  disk; filename defaults to the basename):
+
+      ExNtfy.publish_file("mytopic", {:file, "/tmp/report.pdf"},
+        message: "Monthly report attached",
+        title: "Reports"
+      )
+
+      {:ok, message} = ExNtfy.publish_file("mytopic", png_bytes, filename: "graph.png")
+      message.attachment.url
+      #=> "https://ntfy.sh/file/oaFAdEY1KC.png"
+
+  ## Lifecycle: update, clear, delete
+
+  Messages sharing a sequence ID form a sequence; clients show the latest
+  state. The simplest idiom is to reuse the `id` of the message you published:
+
+      {:ok, message} = ExNtfy.publish("deploys", "Deploy started…")
+
+      # Update it in place as things progress (the returned id is the sequence id)
+      ExNtfy.update("deploys", message.id, "Deploy at 80%…")
+      ExNtfy.update("deploys", message.id, "Deploy finished ✅")
+
+      # Then dismiss it from clients, or delete it outright
+      ExNtfy.clear("deploys", message.id)
+      ExNtfy.delete("deploys", message.id)
+
+  Alternatively pick your own sequence ID up front
+  (`ExNtfy.publish("deploys", "…", sequence_id: "deploy-42")`) and use it for
+  every follow-up.
+
   Client options mix into the same keyword list — for a self-hosted server
   with authentication:
 
@@ -60,4 +94,19 @@ defmodule ExNtfy do
 
   @doc "Webhook-style GET publish. See `ExNtfy.Publisher.trigger/2`."
   defdelegate trigger(topic, opts \\ []), to: Publisher
+
+  @doc "Uploads a binary attachment. See `ExNtfy.Publisher.publish_file/3`."
+  defdelegate publish_file(topic, body, opts \\ []), to: Publisher
+
+  @doc "Like `publish_file/3`, but raises on failure. See `ExNtfy.Publisher.publish_file!/3`."
+  defdelegate publish_file!(topic, body, opts \\ []), to: Publisher
+
+  @doc "Updates a notification via its sequence ID. See `ExNtfy.Publisher.update/4`."
+  defdelegate update(topic, sequence_id, message, opts \\ []), to: Publisher
+
+  @doc "Clears (dismisses) a delivered notification. See `ExNtfy.Publisher.clear/3`."
+  defdelegate clear(topic, sequence_id, opts \\ []), to: Publisher
+
+  @doc "Deletes a notification from clients. See `ExNtfy.Publisher.delete/3`."
+  defdelegate delete(topic, sequence_id, opts \\ []), to: Publisher
 end

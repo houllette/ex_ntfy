@@ -113,6 +113,41 @@ defmodule ExNtfy.Fixtures do
     }
   end
 
+  @doc "JSON body returned by a successful binary upload (§1.4) — attachment fully populated."
+  def upload_response_map do
+    %{
+      "id" => "0d5SgUWXH2",
+      "time" => 1_673_542_291,
+      "expires" => 1_673_553_091,
+      "event" => "message",
+      "topic" => "mytopic",
+      "message" => "You received a file: flower.jpg",
+      "attachment" => attachment_map()
+    }
+  end
+
+  @doc "JSON body returned by `PUT /<topic>/<seq>/clear` (§1.7)."
+  def clear_response_map do
+    %{
+      "id" => "9bBmnoTr5s",
+      "time" => 1_673_542_299,
+      "event" => "message_clear",
+      "topic" => "mytopic",
+      "sequence_id" => "xE73Iyuabi"
+    }
+  end
+
+  @doc "JSON body returned by `DELETE /<topic>/<seq>` (§1.7)."
+  def delete_response_map do
+    %{
+      "id" => "Ck1Ap3mRxz",
+      "time" => 1_673_542_305,
+      "event" => "message_delete",
+      "topic" => "mytopic",
+      "sequence_id" => "xE73Iyuabi"
+    }
+  end
+
   @doc "ntfy JSON error body for HTTP 429 (§1.8)."
   def error_429_map do
     %{
