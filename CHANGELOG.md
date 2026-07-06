@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ExNtfy.poll/2` and `poll!/2` — one-shot retrieval of cached messages
+  (`GET /<topics>/json?poll=1`) with the full `since`/`scheduled`/filter
+  surface, multi-topic support, ndjson parsing (unparsable lines skipped with
+  a warning), and `[:ex_ntfy, :poll, ...]` telemetry spans
+- `ExNtfy.Subscribe.Options` — subscribe option schema and URL builder
+  (`path/2`, `topics_segment/1`, `to_query/1`), shared infrastructure for
+  polling and the upcoming streaming subscriptions
 - `ExNtfy.publish_file/3` and `publish_file!/3` — binary attachment uploads
   (`PUT /<topic>`) accepting iodata, chunk streams, or `{:file, path}`
   (streamed from disk, filename defaulting to the basename), with all publish
