@@ -82,6 +82,13 @@ defmodule ExNtfy.Config do
     |> NimbleOptions.validate!(@schema)
   end
 
+  @doc """
+  The client option keys, for splitting client options out of mixed keyword
+  lists (as `ExNtfy.Publisher` does).
+  """
+  @spec keys() :: [atom()]
+  def keys, do: @config_keys
+
   @doc false
   @spec validate_auth(term()) :: {:ok, auth()} | {:error, String.t()}
   def validate_auth(nil), do: {:ok, nil}

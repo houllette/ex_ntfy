@@ -3,9 +3,10 @@ defmodule ExNtfy.Error do
   The error type for all ExNtfy failures.
 
   HTTP-level failures carry ntfy's JSON error fields (`code`, `http`, `error`,
-  `link`); transport-level failures carry the underlying exception in `reason`.
-  Implements `Exception`, so it can be raised or rendered with
-  `Exception.message/1`.
+  `link`); transport-level failures carry the underlying exception in `reason`,
+  and a 2xx response whose body isn't a parsable message carries
+  `{:invalid_response, details}` there. Implements `Exception`, so it can be
+  raised or rendered with `Exception.message/1`.
   """
 
   defexception [:code, :http, :error, :link, :reason]
@@ -15,7 +16,7 @@ defmodule ExNtfy.Error do
           http: integer() | nil,
           error: String.t() | nil,
           link: String.t() | nil,
-          reason: Exception.t() | nil
+          reason: Exception.t() | {:invalid_response, term()} | nil
         }
 
   @doc """
@@ -53,8 +54,12 @@ defmodule ExNtfy.Error do
   end
 
   @impl Exception
-  def message(%__MODULE__{reason: reason}) when not is_nil(reason) do
+  def message(%__MODULE__{reason: reason}) when is_exception(reason) do
     "ntfy request failed: #{Exception.message(reason)}"
+  end
+
+  def message(%__MODULE__{reason: reason}) when not is_nil(reason) do
+    "ntfy request failed: #{inspect(reason)}"
   end
 
   def message(%__MODULE__{} = e) do
